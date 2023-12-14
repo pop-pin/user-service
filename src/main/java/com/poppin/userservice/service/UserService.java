@@ -1,6 +1,8 @@
 package com.poppin.userservice.service;
 
 import com.poppin.userservice.config.JwtTokenProvider;
+import com.poppin.userservice.dto.request.UpdateUserRequestDto;
+import com.poppin.userservice.dto.response.KakaoLoginResponseDto;
 import com.poppin.userservice.dto.response.KakaoUserResponseDto;
 import com.poppin.userservice.dto.response.ResponseDto;
 import com.poppin.userservice.dto.response.TokenResponseDto;
@@ -34,7 +36,7 @@ public class UserService{
         this.redisTemplate = redisTemplate;
     }
 
-    public TokenResponseDto kakaoLogin(String accessToken) {
+    public KakaoLoginResponseDto kakaoLogin(String accessToken) {
 
         User user;
 
@@ -57,13 +59,16 @@ public class UserService{
 
         Optional<User> userLoginData = userRepository.findByUsernumber(String.valueOf(userInfo.getId()));
         String refreshToken = "Bearer " +jwtTokenProvider.createRereshToken(userLoginData.get().getId());
-        TokenResponseDto tokenResponseDto = TokenResponseDto.builder()
+        KakaoLoginResponseDto tokenResponseDto = KakaoLoginResponseDto.builder()
                 .message("OK")
                 .code(200)
                 .accessToken("Bearer " +jwtTokenProvider.createAccessToken(
                         userLoginData.get().getId(),
                         String.valueOf(userLoginData.get().getRole())))
                 .refreshToken(refreshToken)
+                .userId(userLoginData.get().getId())
+                .email(userLoginData.get().getEmail())
+                .nickname(userLoginData.get().getNickname())
                 .build();
 
         redisTemplate.opsForValue().set(String.valueOf(userLoginData.get().getId()),refreshToken);
@@ -131,5 +136,15 @@ public class UserService{
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .bodyToMono(KakaoUserResponseDto.class);
+    }
+
+    public Long updateUser(User existedUser, UpdateUserRequestDto updateUserRequestDto) {
+        existedUser.updateUser(updateUserRequestDto.getNickname(), updateUserRequestDto.getEmail());
+        userRepository.save(existedUser);
+        return existedUser.getId();
+    }
+
+    public Optional<User> findUserById(Long id) {
+        return userRepository.findById(id);
     }
 }
